@@ -32,7 +32,7 @@
     </form>
     <section id="review" hidden><div class="paper review-paper"><div class="eyebrow" id="review-meta"></div><h2 id="review-solution"></h2><div class="review-part"><h3>선택한 이유</h3><div id="review-criteria" class="chips"></div><p id="review-reason"></p></div><div class="review-part" id="review-caution-wrap"><h3>보완할 점</h3><p id="review-caution"></p></div><div class="review-part"><h3>우리의 실천계획</h3><div id="review-plans"></div></div></div><div class="bottom"><button type="button" id="edit">돌아가서 수정</button><button type="button" class="primary" id="send">선생님께 제출하기</button></div></section>
     <section id="done" hidden class="paper done" aria-live="polite"><i data-lucide="circle-check" aria-hidden="true"></i><h2>제출 화면 체험 완료!</h2><p>실제 수업에서는 이 카드가 선생님 화면에 도착해요.</p><p class="hint">지금은 미리보기라 실제로 전송되지 않았어요.</p><button type="button" id="back-card">작성한 발표 카드 보기</button></section>
-    <div class="print-actions"><button type="button" id="print-card">출력하기</button><p id="save-status" role="status"></p></div><footer>이미지 저장 후, 선생님이 안내한 방법으로 보내세요. 자동 전송은 되지 않아요.</footer>
+    <div class="print-actions"><button type="button" id="print-card">출력하기 · 이미지 저장</button><p id="save-status" role="status"></p></div><footer>이미지 저장 후, 선생님이 안내한 방법으로 보내세요. 자동 전송은 되지 않아요.</footer>
   </main>
 </div>
 <style>
@@ -97,10 +97,34 @@ function makeCardImage(v){
  let y=245;for(const b of blocks){ctx.fillStyle='#176453';ctx.font='700 28px "Malgun Gothic",sans-serif';ctx.fillText(b.title,pad,y);y+=55;ctx.fillStyle='#172e39';ctx.font='500 32px "Malgun Gothic",sans-serif';for(const line of b.lines){ctx.fillText(line,pad,y);y+=49}y+=40;ctx.fillStyle='#dce3df';ctx.fillRect(pad,y-18,contentWidth,2)}
  return canvas.toDataURL('image/png');
 }
-get('send').onclick=()=>{try{const v=values(),url=makeCardImage(v);const done=get('done');done.replaceChildren();const h=document.createElement('h2');h.textContent='발표 카드 이미지가 준비됐어요';const p=document.createElement('p');p.textContent='아래 이미지 저장을 누르세요. 저장한 파일은 선생님이 안내한 방법으로 보내요.';const link=document.createElement('a');link.href=url;link.download=v.group+'_'+v.topic+'_발표카드.png';link.textContent='PNG 이미지 저장';link.style.cssText='display:inline-block;margin:18px 0;padding:12px 18px;background:#176453;color:white;border-radius:10px;text-decoration:none';const img=document.createElement('img');img.src=url;img.alt=v.group+' '+v.topic+' 발표 카드';img.style.cssText='display:block;width:100%;height:auto;margin-top:16px';const hint=document.createElement('p');hint.className='hint';hint.textContent='다운로드가 열리지 않으면 아래 이미지를 길게 눌러 저장해 보세요. 자동 전송은 되지 않아요.';const back=document.createElement('button');back.type='button';back.textContent='돌아가서 수정하기';back.onclick=()=>{show('edit');save()};done.append(h,p,link,hint,img,back);show('done');save();}catch(e){get('send').textContent='이미지 생성 실패 · 다시 시도';}};
+function exportCard(){
+ if(!form.checkValidity()){show('edit');form.reportValidity();return;}
+ try{
+ const v=values(),url=makeCardImage(v),filename=v.group+'_'+v.topic+'_발표카드.png';
+ const done=get('done');done.replaceChildren();
+ const h=document.createElement('h2');h.textContent='발표 카드를 이미지로 저장해요';
+ const p=document.createElement('p');p.textContent='PNG 다운로드를 요청했어요. 사진·갤러리에 보이지 않으면 아래 이미지를 길게 눌러 이미지 저장을 선택하세요.';
+ const link=document.createElement('a');link.href=url;link.download=filename;link.textContent='PNG 다시 저장';link.style.cssText='display:inline-block;margin:18px 12px 18px 0;padding:12px 18px;background:#176453;color:white;border-radius:10px;text-decoration:none';
+ const img=document.createElement('img');img.src=url;img.alt=v.group+' '+v.topic+' 발표 카드';img.style.cssText='display:block;width:100%;height:auto;margin-top:16px;-webkit-touch-callout:default;user-select:auto';
+ const hint=document.createElement('p');hint.className='hint';hint.textContent='기기에 따라 다운로드 폴더에 저장될 수 있어요. 저장한 이미지가 열리는지 확인한 뒤 선생님께 보내세요.';
+ const status=document.createElement('p');status.setAttribute('role','status');
+ const back=document.createElement('button');back.type='button';back.textContent='돌아가서 수정하기';back.onclick=()=>{show('edit');save()};
+ done.append(h,p,link);
+ try{
+ const raw=atob(url.split(',')[1]),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+ const file=new File([bytes],filename,{type:'image/png'});
+ if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+ const share=document.createElement('button');share.type='button';share.textContent='이미지 공유 / 사진에 저장';
+ share.onclick=async()=>{try{await navigator.share({files:[file],title:v.group+' 발표 카드'});status.textContent='공유 창에서 선택한 작업을 확인해 주세요.'}catch(e){status.textContent=e.name==='AbortError'?'공유를 취소했어요. 아래 이미지는 그대로 남아 있어요.':'공유할 수 없어요. 이미지를 길게 눌러 저장해 주세요.'}};done.append(share);
+ }
+ }catch(e){}
+ done.append(hint,status,img,back);show('done');save();link.click();
+ }catch(e){get('save-status').textContent='이미지를 만들지 못했어요. 다시 눌러 주세요.';}
+}
+get('send').onclick=exportCard;
 addPlan();
 try{const saved=JSON.parse(localStorage.getItem(draftKey)||'null');if(saved)restore(saved)}catch(e){}
-get('print-card').onclick=()=>{if(!form.checkValidity()){show('edit');form.reportValidity();return}review();window.print()};
+get('print-card').onclick=exportCard;
 window.addEventListener('beforeprint',()=>review());
 
 })();
